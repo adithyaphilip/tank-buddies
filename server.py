@@ -1,8 +1,9 @@
 import socket
 import threading
-import game_helper
-from game_helper import Player
-from game_helper import GAME_INTERVAL
+import server_models
+from server_models import Player
+from constants import GAME_INTERVAL
+from constants import Direction
 import network
 import select
 
@@ -19,23 +20,23 @@ def start_listening_for_input(player: Player):
     if ready[0]:
         move = int(player.socket.recv(1024).decode("utf-8"))
         print("Read move", move, "from player", player.id)
-        game_helper.lock.acquire()
-        game_helper.Move(move).make_move(player, game)
-        game_helper.lock.release()
+        server_models.lock.acquire()
+        server_models.Move(move).make_move(player, game)
+        server_models.lock.release()
 
 
 def start_periodic_sending(player: Player):
     threading.Timer(GAME_INTERVAL, start_periodic_sending, (player, )).start()
-    game_helper.lock.acquire()
+    server_models.lock.acquire()
     network.send_periodic(player.socket, game)
-    game_helper.lock.release()
+    server_models.lock.release()
 
 
 def start_simulation():
     threading.Timer(GAME_INTERVAL, start_simulation).start()
-    game_helper.lock.acquire()
+    server_models.lock.acquire()
     game.next_instance()
-    game_helper.lock.release()
+    server_models.lock.release()
 
 
 def handle_player(player):
@@ -52,7 +53,7 @@ def main():
     if num_pl > 4:
         print("Players limited to 4 right now, until pos is changed to support more starting positions")
 
-    game_map = game_helper.read_map(map_file)
+    game_map = server_models.read_map(map_file)
 
     if game_map is None:
         print("Failed to create game map, exiting")
@@ -72,13 +73,13 @@ def main():
         conn_sock, addr = server_sock.accept()
         player = Player(conn_sock, num_pl - i)
         x, y = pos.pop()
-        player.setup(x, y, Player.LEFT)
+        player.setup(x, y, Direction.LEFT)
         players.append(player)
 
     print("Beginning game!")
 
     global game
-    game = game_helper.get_game(players, map_file)
+    game = server_models.get_game(players, map_file)
 
     player_threads = [threading.Thread(target=handle_player, args=(player,)) for player in players]
     for thread in player_threads:

@@ -1,7 +1,8 @@
 import threading
 import socket
-
-GAME_INTERVAL = 1 / 25  # in seconds
+from constants import Key
+from constants import Direction
+from constants import Map
 
 lock = threading.Lock()
 
@@ -9,11 +10,6 @@ lock = threading.Lock()
 # TODO: PHILAD
 
 class Player:
-    LEFT = 0
-    UP = 1
-    RIGHT = 2
-    DOWN = 3
-
     def __init__(self, player_sock: socket.socket, player_id):
         self.socket = player_sock
         self.id = player_id
@@ -31,45 +27,27 @@ class Player:
 
 
 class Move:
-    LEFT = 0
-    UP = 1
-    RIGHT = 2
-    DOWN = 3
-    FIRE = 4
-    LOOK_LEFT = 5
-    LOOK_UP = 6
-    LOOK_RIGHT = 7
-    LOOK_DOWN = 8
-
-    move_switch = {LEFT: (-1, 0), RIGHT: (1, 0), UP: (0, -1), DOWN: (0, 1)}
+    move_switch = {Key.LEFT: (-1, 0), Key.RIGHT: (1, 0), Key.UP: (0, -1), Key.DOWN: (0, 1)}
 
     def __init__(self, move):
         self.move = move
 
     def make_move(self, player: Player, game):
         game_map = game.map
-        if Move.LEFT <= self.move <= Move.DOWN:
+        if Key.LEFT <= self.move <= Key.DOWN:
             new_x, new_y = new_pos(player.x, player.y, *Move.move_switch[self.move])
             if not is_invalid_pos(new_x, new_y, game_map):
                 player.x = new_x
                 player.y = new_y
-        elif self.move == Move.FIRE:
+        elif self.move == Key.FIRE:
             bx, by = new_pos(player.x, player.y, *Move.move_switch[player.direction])
             bullet = Bullet(Bullet.SPEED, bx, by, player.direction)
             game.add_bullet(bullet)
-        elif Move.LOOK_LEFT <= self.move <= Move.LOOK_DOWN:
-            player.direction = self.move - Move.LOOK_LEFT
-
-
-            # TODO: PHILIP add support for other moves
+        elif Key.LOOK_LEFT <= self.move <= Key.LOOK_DOWN:
+            player.direction = self.move - Key.LOOK_LEFT
 
 
 class Bullet:
-    LEFT = 0
-    UP = 1
-    RIGHT = 2
-    DOWN = 3
-
     SPEED = 0.25  # blocks per GAME_INTERVAL
 
     def __init__(self, speed, x, y, direction):
@@ -85,13 +63,13 @@ class Bullet:
         return int(self.y)
 
     def go_next_pos(self):
-        if self.direction == Bullet.LEFT:
+        if self.direction == Direction.LEFT:
             self.x -= self.speed
-        elif self.direction == Bullet.UP:
+        elif self.direction == Direction.UP:
             self.y -= self.speed
-        elif self.direction == Bullet.RIGHT:
+        elif self.direction == Direction.RIGHT:
             self.x += self.speed
-        elif self.direction == Bullet.DOWN:
+        elif self.direction == Direction.DOWN:
             self.y += self.speed
 
     def __repr__(self):
@@ -99,7 +77,6 @@ class Bullet:
 
 
 class Game:
-    OBSTACLE = 1
 
     def __init__(self, players: list, game_map):
         self.players = players
@@ -132,7 +109,7 @@ def new_pos(old_x, old_y, offset_x, offset_y):
 
 
 def is_invalid_pos(x, y, game_map):
-    return x < 0 or y < 0 or x >= len(game_map[0]) or y >= len(game_map) or game_map[x][y] == Game.OBSTACLE
+    return x < 0 or y < 0 or x >= len(game_map[0]) or y >= len(game_map) or game_map[x][y] == Map.OBSTACLE
 
 
 def is_hit(x, y, player):

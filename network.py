@@ -1,5 +1,5 @@
 import socket
-from game_helper import Player
+from server_models import Player
 
 
 def send_init_details(player: Player, game):
