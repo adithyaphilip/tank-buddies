@@ -39,7 +39,7 @@ def start_simulation():
 
 
 def handle_player(player):
-    network.send_init_details(player.socket, game)
+    network.send_init_details(player, game)
     start_listening_for_input(player)
     start_periodic_sending(player)
 
