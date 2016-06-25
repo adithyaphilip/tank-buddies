@@ -40,4 +40,4 @@ def listen_for_udp_reg(server_sock: socket.socket, addr_list, num_conn: int):
         data, addr = server_sock.recvfrom(1024)
         print("Registering addr", addr, "for udp")
         addr_list.append(addr)
-        server_sock.sendto(addr, "1".encode("utf-8"))
+        server_sock.sendto("".encode("utf-8"), addr)
