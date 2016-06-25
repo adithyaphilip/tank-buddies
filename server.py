@@ -23,12 +23,20 @@ def start_listening_for_input(player: Player):
         server_models.lock.acquire()
         server_models.Move(move).make_move(player, game)
         server_models.lock.release()
+#
+# TODO: REMOVE was in place while TCP was used to send periodic
+# def start_periodic_sending(player: Player):
+#     threading.Timer(GAME_INTERVAL, start_periodic_sending, (player, )).start()
+#     server_models.lock.acquire()
+#     network.send_periodic(player.socket, game)
+#     server_models.lock.release()
 
 
-def start_periodic_sending(player: Player):
-    threading.Timer(GAME_INTERVAL, start_periodic_sending, (player, )).start()
+def start_periodic_udp_sending(server_sock: socket.socket, addr_list: list):
+    threading.Timer(GAME_INTERVAL, start_periodic_udp_sending, (server_sock, addr_list)).start()
     server_models.lock.acquire()
-    network.send_periodic(player.socket, game)
+    for addr in addr_list:
+        network.send_periodic(server_sock, game, addr)
     server_models.lock.release()
 
 
@@ -42,7 +50,7 @@ def start_simulation():
 def handle_player(player):
     network.send_init_details(player, game)
     start_listening_for_input(player)
-    start_periodic_sending(player)
+    # start_periodic_sending(player)
 
 
 def main():
@@ -61,15 +69,22 @@ def main():
 
     pos = [(0, 0), (0, len(game_map) - 1), (len(game_map[0]) - 1, 0), (len(game_map[0]) - 1, len(game_map) - 1)]
 
+    # starting UDP listener
+    udp_sock = socket.socket(type=socket.SOCK_DGRAM, family=socket.AF_INET)
+    udp_sock.bind(('', server_port))
+    udp_addr_list = []
+    udp_listen_thread = threading.Thread(target=network.listen_for_udp_reg, args=(udp_sock, udp_addr_list, num_pl))
+    udp_listen_thread.start()
+
     server_sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
     server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_sock.bind(('', server_port))
+    server_sock.listen(1)
 
     players = []
 
     for i in range(num_pl, 0, -1):
         print("Waiting for %d more player%s to join" % (i, '' if i == 1 else 's'))
-        server_sock.listen(1)
         conn_sock, addr = server_sock.accept()
         player = Player(conn_sock, num_pl - i)
         x, y = pos.pop()
@@ -78,12 +93,17 @@ def main():
 
     print("Beginning game!")
 
+    threading.Thread(target=start_periodic_udp_sending, args = (udp_sock, udp_addr_list)).start()
+
     global game
     game = server_models.get_game(players, map_file)
 
     player_threads = [threading.Thread(target=handle_player, args=(player,)) for player in players]
     for thread in player_threads:
         thread.start()
+
+    print("Waiting for remainging udp connections!")
+    udp_listen_thread.join()
 
     start_simulation()
 
