@@ -18,7 +18,8 @@ def start_listening_for_input(player: Player):
     threading.Timer(GAME_INTERVAL, start_listening_for_input, (player,)).start()
     ready = select.select([player.socket], [], [], GAME_INTERVAL)
     if ready[0]:
-        move = int(player.socket.recv(1024).decode("utf-8"))
+        # TODO: PHILAD allow reading more than one byte also
+        move = int(player.socket.recv(1).decode("utf-8"))
         print("Read move", move, "from player", player.id)
         server_models.lock.acquire()
         server_models.Move(move).make_move(player, game)
